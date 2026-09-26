@@ -48,6 +48,7 @@ export type Passenger = PassengerInput & { id: string; tripId: string; createdAt
 
 export type Trip = Omit<CreateTripInput, 'passengers'> & {
   id: string;
+  userId: string | null;
   createdAt: string;
   passengers?: Passenger[];
 };
