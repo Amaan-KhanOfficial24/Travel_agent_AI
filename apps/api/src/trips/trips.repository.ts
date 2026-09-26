@@ -8,8 +8,13 @@ import type { CreateTripInput, Passenger, PassengerInput, Trip } from './trips.s
 // Anything with a .query() method: the pool (one-off queries) or a client inside a transaction.
 type Queryable = Pick<pg.Pool, 'query'> | pg.PoolClient;
 
+// Whose trips a query may see: one user's, or (admin) everyone's.
+// Ownership is enforced IN the SQL (WHERE user_id = ...), so no code path can forget it.
+export type Scope = { userId: string } | { all: true };
+const owner = (scope: Scope) => ('userId' in scope ? scope.userId : null); // null = no filter
+
 type TripRow = {
-  id: string; origin: string; destination: string; departure_date: string; return_date: string | null;
+  id: string; user_id: string | null; origin: string; destination: string; departure_date: string; return_date: string | null;
   adults: number; children: number; cabin: Trip['cabin']; created_at: Date;
 };
 type PassengerRow = {
@@ -20,6 +25,7 @@ type PassengerRow = {
 // Database columns are snake_case; the API speaks camelCase. Mapping happens here only.
 const toTrip = (r: TripRow): Trip => ({
   id: r.id,
+  userId: r.user_id,
   origin: r.origin,
   destination: r.destination,
   departureDate: r.departure_date,
@@ -42,30 +48,49 @@ const toPassenger = (r: PassengerRow): Passenger => ({
 });
 
 export const tripsRepository = {
-  async create(input: Omit<CreateTripInput, 'passengers'>, db: Queryable = pool): Promise<Trip> {
+  async create(input: Omit<CreateTripInput, 'passengers'>, userId: string, db: Queryable = pool): Promise<Trip> {
     const { rows } = await db.query<TripRow>(
-      `INSERT INTO trips (origin, destination, departure_date, return_date, adults, children, cabin)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO trips (user_id, origin, destination, departure_date, return_date, adults, children, cabin)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [input.origin, input.destination, input.departureDate, input.returnDate ?? null,
+      [userId, input.origin, input.destination, input.departureDate, input.returnDate ?? null,
        input.adults, input.children, input.cabin],
     );
     return toTrip(rows[0]!);
   },
 
-  async findById(id: string, db: Queryable = pool): Promise<Trip | undefined> {
-    const { rows } = await db.query<TripRow>('SELECT * FROM trips WHERE id = $1', [id]);
+  async findById(id: string, scope: Scope, db: Queryable = pool): Promise<Trip | undefined> {
+    const { rows } = await db.query<TripRow>(
+      'SELECT * FROM trips WHERE id = $1 AND ($2::uuid IS NULL OR user_id = $2)',
+      [id, owner(scope)],
+    );
     return rows[0] ? toTrip(rows[0]) : undefined;
   },
 
-  async list(limit = 50, db: Queryable = pool): Promise<Trip[]> {
-    const { rows } = await db.query<TripRow>('SELECT * FROM trips ORDER BY created_at DESC LIMIT $1', [limit]);
+  /** Locks the trip row until the transaction ends (see tripsService.addPassenger). */
+  async findByIdForUpdate(id: string, scope: Scope, db: Queryable): Promise<Trip | undefined> {
+    const { rows } = await db.query<TripRow>(
+      'SELECT * FROM trips WHERE id = $1 AND ($2::uuid IS NULL OR user_id = $2) FOR UPDATE',
+      [id, owner(scope)],
+    );
+    return rows[0] ? toTrip(rows[0]) : undefined;
+  },
+
+  async list(scope: Scope, limit = 50, db: Queryable = pool): Promise<Trip[]> {
+    const { rows } = await db.query<TripRow>(
+      `SELECT * FROM trips WHERE ($1::uuid IS NULL OR user_id = $1)
+       ORDER BY created_at DESC LIMIT $2`,
+      [owner(scope), limit],
+    );
     return rows.map(toTrip);
   },
 
   /** Returns true if a row was deleted. Passengers go with it (ON DELETE CASCADE). */
-  async delete(id: string, db: Queryable = pool): Promise<boolean> {
-    const { rowCount } = await db.query('DELETE FROM trips WHERE id = $1', [id]);
+  async delete(id: string, scope: Scope, db: Queryable = pool): Promise<boolean> {
+    const { rowCount } = await db.query('DELETE FROM trips WHERE id = $1 AND ($2::uuid IS NULL OR user_id = $2)', [
+      id,
+      owner(scope),
+    ]);
     return rowCount === 1;
   },
 

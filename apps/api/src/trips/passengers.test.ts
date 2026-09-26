@@ -4,6 +4,7 @@ import request from 'supertest';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../app.js';
 import { pool } from '../db/pool.js';
+import { signUp } from '../test/auth.js';
 import { resetDb } from '../test/db.js';
 
 const app = createApp();
@@ -13,12 +14,18 @@ const child = { paxType: 'child', givenName: 'Sara', familyName: 'Khan', bornOn:
 const trip = (extra = {}) => ({ origin: 'DXB', destination: 'LHR', departureDate: future(30), adults: 2, children: 1, ...extra });
 
 async function createTrip(extra = {}) {
-  const res = await request(app).post('/trips').send(trip(extra));
+  const res = await user.post('/trips').send(trip(extra));
   expect(res.status).toBe(201);
   return res.body.data.id as string;
 }
 
-beforeEach(() => resetDb());
+type Agent = Awaited<ReturnType<typeof signUp>>['agent'];
+let user: Agent;
+
+beforeEach(async () => {
+  await resetDb();
+  user = (await signUp(app)).agent;
+});
 afterAll(() => pool.end());
 
 describe('persistence', () => {
@@ -30,54 +37,54 @@ describe('persistence', () => {
 
   it('dates come back exactly as sent (no time-zone shift)', async () => {
     const id = await createTrip({ departureDate: '2027-01-01', returnDate: '2027-01-15' });
-    const res = await request(app).get(`/trips/${id}`);
+    const res = await user.get(`/trips/${id}`);
     expect(res.body.data).toMatchObject({ departureDate: '2027-01-01', returnDate: '2027-01-15' });
   });
 
   it('DELETE removes the trip and its passengers (cascade)', async () => {
     const id = await createTrip();
-    await request(app).post(`/trips/${id}/passengers`).send(adult());
-    expect((await request(app).delete(`/trips/${id}`)).status).toBe(204);
+    await user.post(`/trips/${id}/passengers`).send(adult());
+    expect((await user.delete(`/trips/${id}`)).status).toBe(204);
     const { rows } = await pool.query('SELECT count(*)::int AS n FROM passengers WHERE trip_id = $1', [id]);
     expect(rows[0].n).toBe(0);
-    expect((await request(app).get(`/trips/${id}`)).status).toBe(404);
+    expect((await user.get(`/trips/${id}`)).status).toBe(404);
   });
 });
 
 describe('passengers', () => {
   it('adds and lists passengers', async () => {
     const id = await createTrip();
-    const add = await request(app).post(`/trips/${id}/passengers`).send(adult());
+    const add = await user.post(`/trips/${id}/passengers`).send(adult());
     expect(add.status).toBe(201);
     expect(add.body.data).toMatchObject({ tripId: id, paxType: 'adult', givenName: 'Aman' });
-    const list = await request(app).get(`/trips/${id}/passengers`);
+    const list = await user.get(`/trips/${id}/passengers`);
     expect(list.body.data).toHaveLength(1);
   });
 
   it('409 when the same person is added twice (unique constraint)', async () => {
     const id = await createTrip();
-    await request(app).post(`/trips/${id}/passengers`).send(adult());
-    const res = await request(app).post(`/trips/${id}/passengers`).send(adult());
+    await user.post(`/trips/${id}/passengers`).send(adult());
+    const res = await user.post(`/trips/${id}/passengers`).send(adult());
     expect(res.status).toBe(409);
     expect(res.body.error.message).toBe('This passenger is already on the trip');
   });
 
   it('400 when there are more adults than the trip allows', async () => {
     const id = await createTrip({ adults: 1, children: 0 });
-    await request(app).post(`/trips/${id}/passengers`).send(adult('One'));
-    const res = await request(app).post(`/trips/${id}/passengers`).send(adult('Two'));
+    await user.post(`/trips/${id}/passengers`).send(adult('One'));
+    const res = await user.post(`/trips/${id}/passengers`).send(adult('Two'));
     expect(res.status).toBe(400);
   });
 
   it('404 when adding a passenger to a trip that does not exist', async () => {
-    const res = await request(app).post('/trips/00000000-0000-4000-8000-000000000000/passengers').send(adult());
+    const res = await user.post('/trips/00000000-0000-4000-8000-000000000000/passengers').send(adult());
     expect(res.status).toBe(404);
   });
 });
 
 describe('transactions', () => {
   it('creates a trip with passengers in one request', async () => {
-    const res = await request(app).post('/trips').send(trip({ passengers: [adult(), child] }));
+    const res = await user.post('/trips').send(trip({ passengers: [adult(), child] }));
     expect(res.status).toBe(201);
     expect(res.body.data.passengers).toHaveLength(2);
   });
@@ -85,7 +92,7 @@ describe('transactions', () => {
   it('rolls back the trip when a passenger insert fails', async () => {
     // Same person twice: the second insert violates the unique constraint inside the
     // transaction, so the already-inserted trip must be rolled back as well.
-    const res = await request(app).post('/trips').send(trip({ passengers: [adult(), adult()] }));
+    const res = await user.post('/trips').send(trip({ passengers: [adult(), adult()] }));
     expect(res.status).toBe(409);
     const { rows } = await pool.query('SELECT count(*)::int AS n FROM trips');
     expect(rows[0].n).toBe(0);
@@ -109,7 +116,7 @@ describe('concurrency', () => {
       );
 
       let finished = false;
-      const apiCall = request(app)
+      const apiCall = user
         .post(`/trips/${id}/passengers`)
         .send(adult('Late'))
         .then((r) => ((finished = true), r));
@@ -138,7 +145,7 @@ describe('database constraints are the last line of defence', () => {
   it('treats a malicious value as plain text (parameterised queries)', async () => {
     const id = await createTrip();
     const evil = "x'); DROP TABLE trips; --";
-    const res = await request(app).post(`/trips/${id}/passengers`).send({ ...adult(), familyName: evil });
+    const res = await user.post(`/trips/${id}/passengers`).send({ ...adult(), familyName: evil });
     expect(res.status).toBe(201);
     expect(res.body.data.familyName).toBe(evil);
     const { rows } = await pool.query('SELECT count(*)::int AS n FROM trips');
