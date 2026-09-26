@@ -9,6 +9,19 @@ const schema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/, error: 'Must be a postgres:// connection URL' }),
   DB_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
+  // Comma-separated list of browser origins allowed to call the API with cookies,
+  // e.g. "http://localhost:5173,https://my-app.vercel.app". Nothing else is allowed.
+  CORS_ORIGINS: z
+    .string()
+    .default('http://localhost:5173')
+    .transform((s) => s.split(',').map((o) => o.trim()).filter(Boolean)),
+  SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(24 * 30).default(24 * 7),
+  // Stage 10: frontend and API on different sites need SameSite=None (with Secure).
+  COOKIE_SAMESITE: z.enum(['lax', 'strict', 'none']).default('lax'),
+  // How many reverse proxies sit in front of the API (Render: 1). Only then is the
+  // X-Forwarded-For header trustworthy. With 0, the client IP comes from the TCP
+  // connection and a faked X-Forwarded-For header is ignored.
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(3).default(0),
 });
 
 const parsed = schema.safeParse(process.env);
