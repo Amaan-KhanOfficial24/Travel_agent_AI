@@ -1,21 +1,24 @@
 // API tests: supertest sends real HTTP requests to the app in memory (no port) and
 // we assert on status codes, headers and JSON, exactly as a client would see them.
 import request from 'supertest';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from './app.js';
-import { tripsRepository } from './trips/trips.repository.js';
+import { pool } from './db/pool.js';
+import { resetDb } from './test/db.js';
 
 const app = createApp();
 const future = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
 const validTrip = () => ({ origin: 'dxb', destination: 'LHR', departureDate: future(30), adults: 2, children: 1 });
 
-beforeEach(() => tripsRepository.clear());
+beforeEach(() => resetDb());
+afterAll(() => pool.end());
 
 describe('health and request IDs', () => {
   it('GET /health returns 200 and a request ID header', async () => {
     const res = await request(app).get('/health');
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('ok');
+    expect(res.body.database).toBe('up');
     expect(res.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
   });
 
