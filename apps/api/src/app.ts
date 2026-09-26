@@ -4,6 +4,7 @@
 // Middleware runs top to bottom for every request. Order matters.
 import express from 'express';
 import { pinoHttp } from 'pino-http';
+import { pool } from './db/pool.js';
 import { logger } from './logger.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { requestId } from './middleware/requestId.js';
@@ -29,8 +30,16 @@ export function createApp() {
   app.use(express.json({ limit: '100kb' })); // 3. parse JSON bodies, reject huge ones
 
   // 4. routes
-  app.get('/health', (_req, res) => {
-    res.json({ status: 'ok', uptimeSeconds: Math.round(process.uptime()) });
+  // Liveness + readiness: the process is up AND it can reach the database.
+  // Hosting platforms call this to decide whether to send traffic to this instance.
+  app.get('/health', async (_req, res) => {
+    const started = Date.now();
+    try {
+      await pool.query('SELECT 1');
+      res.json({ status: 'ok', database: 'up', dbLatencyMs: Date.now() - started, uptimeSeconds: Math.round(process.uptime()) });
+    } catch {
+      res.status(503).json({ status: 'degraded', database: 'down', uptimeSeconds: Math.round(process.uptime()) });
+    }
   });
   app.use('/trips', tripsRouter);
 
