@@ -1,5 +1,5 @@
-# Runs on every push and pull request: install, type-check, test.
-# A red check on a pull request means "do not merge".
+# Runs on every push and pull request: install, type-check, test against a real
+# PostgreSQL. A red check on a pull request means "do not merge".
 name: CI
 
 on:
@@ -10,6 +10,20 @@ on:
 jobs:
   api:
     runs-on: ubuntu-latest
+    services:
+      # A throwaway database that exists only for the length of this job.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: app
+          POSTGRES_HOST_AUTH_METHOD: trust   # throwaway CI database, no password
+          POSTGRES_DB: travel_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U app -d travel_test"
+          --health-interval 2s --health-timeout 3s --health-retries 15
+    env:
+      TEST_DATABASE_URL: postgres://app@localhost:5432/travel_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
