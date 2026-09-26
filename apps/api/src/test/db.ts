@@ -2,5 +2,5 @@
 import { pool } from '../db/pool.js';
 
 export async function resetDb() {
-  await pool.query('TRUNCATE trips, passengers RESTART IDENTITY CASCADE');
+  await pool.query('TRUNCATE users, sessions, trips, passengers RESTART IDENTITY CASCADE');
 }
