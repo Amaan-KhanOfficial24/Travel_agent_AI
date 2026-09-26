@@ -63,6 +63,10 @@ curl -s -X POST localhost:3000/trips -H 'Content-Type: application/json' \
 ## Configuration
 
 Copy `apps/api/.env.example` to `apps/api/.env`. `.env` files are git-ignored and must never be committed.
+
+**Secrets policy:** this repository is public, so no API key, token or password is ever committed.
+Real values live only in `.env` (ignored), GitHub Codespaces secrets, or the hosting platform's
+environment settings. A gitleaks scan runs on every push and pull request and fails if a secret appears.
 The API refuses to start if a variable is invalid (e.g. `PORT=abc`).
 
 ## Known limitations (Stage 2)
