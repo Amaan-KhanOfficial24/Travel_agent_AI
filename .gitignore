@@ -12,3 +12,12 @@ coverage/
 *.log
 uploads/
 .DS_Store
+
+# more secret file types: never committed
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials*.json
+service-account*.json
