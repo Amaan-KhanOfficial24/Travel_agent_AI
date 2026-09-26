@@ -10,11 +10,24 @@ export const tripsController = {
   },
 
   async get(_req: Request, res: Response) {
-    const trip = await tripsService.get(res.locals.params.id);
-    res.json({ data: trip });
+    res.json({ data: await tripsService.get(res.locals.params.id) });
   },
 
   async list(_req: Request, res: Response) {
     res.json({ data: await tripsService.list() });
+  },
+
+  async remove(_req: Request, res: Response) {
+    await tripsService.remove(res.locals.params.id);
+    res.status(204).end();
+  },
+
+  async addPassenger(_req: Request, res: Response) {
+    const passenger = await tripsService.addPassenger(res.locals.params.id, res.locals.body);
+    res.status(201).json({ data: passenger });
+  },
+
+  async listPassengers(_req: Request, res: Response) {
+    res.json({ data: await tripsService.listPassengers(res.locals.params.id) });
   },
 };
