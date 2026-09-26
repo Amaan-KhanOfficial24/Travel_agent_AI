@@ -1,0 +1,5 @@
+{
+  "name": "travel-agent-ai",
+  "private": true,
+  "workspaces": ["apps/*"]
+}

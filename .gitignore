@@ -1,0 +1,14 @@
+# dependencies and build output: reproducible, never committed
+node_modules/
+dist/
+coverage/
+
+# secrets: never committed
+.env
+.env.*
+!.env.example
+
+# runtime files
+*.log
+uploads/
+.DS_Store
