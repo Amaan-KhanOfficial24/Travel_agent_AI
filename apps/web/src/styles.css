@@ -1,0 +1,43 @@
+/* Plain CSS, kept small. Colours are variables so a dark theme is one block. */
+:root {
+  --bg: #f7f7f5; --surface: #ffffff; --text: #1d1d1b; --muted: #6b6b66;
+  --accent: #1f5fbf; --danger: #b3261e; --border: #dcdcd6; --error-bg: #fdecea;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: var(--text); background: var(--bg);
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #161615; --surface: #1f1f1e; --text: #ececea; --muted: #a3a39d;
+    --accent: #7aa7ff; --danger: #ff8a80; --border: #3a3a37; --error-bg: #3b1f1d; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); }
+header { display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  padding: 12px 16px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.brand { font-weight: 700; text-decoration: none; color: var(--text); }
+.who { display: flex; gap: 12px; align-items: center; color: var(--muted); font-size: 14px; }
+main { max-width: 860px; margin: 24px auto; padding: 0 16px; }
+main.narrow { max-width: 420px; }
+h1 { font-size: 26px; } h2 { font-size: 18px; margin-top: 32px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 16px 0; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.span-all { grid-column: 1 / -1; }
+.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+label { font-size: 13px; color: var(--muted); }
+input, select { font: inherit; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text); }
+input[aria-invalid='true'] { border-color: var(--danger); }
+.field-error { color: var(--danger); font-size: 13px; }
+button { font: inherit; padding: 8px 16px; border: 0; border-radius: 6px; background: var(--accent); color: #fff; cursor: pointer; margin-top: 8px; }
+button:disabled { opacity: .6; cursor: wait; }
+button.danger { background: var(--danger); }
+button.link { background: none; color: var(--accent); padding: 0; margin: 0; }
+.error-banner { background: var(--error-bg); color: var(--danger); border-radius: 6px; padding: 10px 12px; margin: 8px 0;
+  display: flex; flex-direction: column; gap: 2px; }
+.request-id { font-size: 12px; opacity: .8; font-family: ui-monospace, monospace; }
+.notice { background: var(--surface); border-left: 3px solid var(--accent); padding: 8px 12px; }
+.muted { color: var(--muted); }
+.trip-list { list-style: none; padding: 0; display: grid; gap: 8px; }
+.trip-list a { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 12px 16px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px; text-decoration: none; color: var(--text); }
+table { width: 100%; border-collapse: collapse; background: var(--surface); }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }

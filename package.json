@@ -1,11 +1,15 @@
 {
   "name": "travel-agent-ai",
   "private": true,
-  "workspaces": ["apps/*"],
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "dev:api": "npm run dev -w @travel/api",
     "test": "npm test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "build": "npm run build --workspaces --if-present"
+    "build": "npm run build --workspaces --if-present",
+    "dev:web": "npm run dev -w @travel/web",
+    "e2e": "npm run e2e -w @travel/web"
   }
 }
