@@ -13,7 +13,7 @@ import { clearSessionCookie, setSessionCookie } from './sessions.js';
 // instances share them.)
 const authLimiter = rateLimit({
   windowMs: 15 * 60_000,
-  limit: config.NODE_ENV === 'test' ? 1000 : 10,
+  limit: config.NODE_ENV === 'test' ? 1000 : config.AUTH_RATE_LIMIT,
   standardHeaders: 'draft-8', // tells the client its remaining budget in RateLimit headers
   legacyHeaders: false,
   handler: (_req, _res, next) =>
