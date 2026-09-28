@@ -5,11 +5,19 @@
     "apps/*"
   ],
   "scripts": {
+    "dev": "concurrently -k -n api,web -c blue,green \"npm run dev -w @travel/api\" \"npm run dev -w @travel/web\"",
+    "dev:offline": "concurrently -k -n fakes,api,web -c magenta,blue,green \"npm run fakes -w @travel/api\" \"cross-env-shell DUFFEL_BASE_URL=http://localhost:4010 DUFFEL_ACCESS_TOKEN=duffel_test_offline GEMINI_BASE_URL=http://localhost:4020 GEMINI_API_KEY=offline npm run dev -w @travel/api\" \"npm run dev -w @travel/web\"",
     "dev:api": "npm run dev -w @travel/api",
+    "dev:web": "npm run dev -w @travel/web",
+    "check": "node scripts/check-setup.mjs",
     "test": "npm test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
-    "dev:web": "npm run dev -w @travel/web",
     "e2e": "npm run e2e -w @travel/web"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5",
+    "cross-env": "^10.1.0",
+    "pg": "^8.23.0"
   }
 }
