@@ -2,6 +2,20 @@
 // in a real browser against the real API and the stand-in Duffel/Gemini servers.
 import { expect, test, type Page } from '@playwright/test';
 
+// On failure, report what the browser was showing and any page errors (visible in CI annotations).
+const pageErrors: string[] = [];
+test.beforeEach(({ page }) => {
+  pageErrors.length = 0;
+  page.on('pageerror', (e) => pageErrors.push(e.message));
+  page.on('console', (m) => m.type() === 'error' && pageErrors.push(m.text()));
+});
+test.afterEach(async ({ page }, info) => {
+  if (info.status !== info.expectedStatus) {
+    const body = (await page.locator('body').innerText().catch(() => '')).slice(0, 600);
+    throw new Error(`DIAGNOSTICS url=${page.url()}\nerrors=${JSON.stringify(pageErrors)}\nbody=${body}`);
+  }
+});
+
 const PASSWORD = 'test-only-password-123'; // pragma: allowlist secret  gitleaks:allow
 const future = (d: number) => new Date(Date.now() + d * 86_400_000).toISOString().slice(0, 10);
 
