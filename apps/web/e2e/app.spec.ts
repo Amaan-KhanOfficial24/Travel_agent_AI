@@ -103,6 +103,7 @@ test("another user's trip link shows 'Trip not found'", async ({ page, browser }
 
 test('session ending mid-use sends the user to login with an explanation', async ({ page }) => {
   const email = await register(page);
+  await expect(page.getByText('No trips yet')).toBeVisible(); // let the page finish loading first
   await db.query('DELETE FROM sessions WHERE user_id = (SELECT id FROM users WHERE email = $1)', [email]);
   await createTrip(page); // the next API call gets 401
   await expect(page).toHaveURL(/\/login$/);
