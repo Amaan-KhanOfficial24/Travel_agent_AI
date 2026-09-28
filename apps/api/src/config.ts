@@ -22,6 +22,8 @@ const schema = z.object({
   // X-Forwarded-For header trustworthy. With 0, the client IP comes from the TCP
   // connection and a faked X-Forwarded-For header is ignored.
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(3).default(0),
+  // Login/register attempts allowed per IP per 15 minutes (raised only for automated tests).
+  AUTH_RATE_LIMIT: z.coerce.number().int().min(1).max(10_000).default(10),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -31,6 +33,14 @@ if (!parsed.success) {
   // rather than failing later in some unrelated request.
   console.error(`Invalid environment configuration:\n${z.prettifyError(parsed.error)}`);
   process.exit(1);
+}
+
+// In GitHub Codespaces the frontend is opened on https://<codespace>-5173.<domain>.
+// Codespaces tells us both parts in environment variables, so allow that one origin
+// automatically instead of asking the user to type it.
+const { CODESPACE_NAME, GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN } = process.env;
+if (CODESPACE_NAME && GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN) {
+  parsed.data.CORS_ORIGINS.push(`https://${CODESPACE_NAME}-5173.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}`);
 }
 
 export const config = parsed.data;
