@@ -1,5 +1,7 @@
 # Travel_agent_AI
 
+**To run it: follow [SETUP.md](SETUP.md)** (two free keys, then `npm run check` and `npm run dev` in Codespaces).
+
 An AI travel agent built as a hands-on learning project: flight search, booking and
 fare-change recovery on the Duffel test API, with a TypeScript API (Express),
 a React front end (Vite) and PostgreSQL.
@@ -13,7 +15,8 @@ a React front end (Vite) and PostgreSQL.
 | 3 | PostgreSQL: migrations, SQL repositories, transactions, row locks, DB error handling | Done |
 | 4 | Accounts, sessions, roles, CORS, CSRF, rate limiting, security headers | Done |
 | 5 | React frontend: login, trips, passengers; loading and error states; browser tests | Done |
-| 6 | Flight search with the Duffel test API | Next |
+| 6 | Duffel flight search, price check, booking with fare-change recovery | Done |
+| 7 | AI assistant (Gemini tool calling) with grounding guard | Done |
 
 ## Structure
 
@@ -30,13 +33,18 @@ apps/api/        Express + TypeScript API
     admin/           admin-only routes; make-admin command
     db/              connection pool, transactions, migration runner, DB error mapping
     trips/           routes → controller → service → repository (+ schema)
+    flights/         search, offers, "check price" quotes
+    bookings/        booking state machine, fare-change recovery, matching rules
+    agent/           Gemini client, tools, agent loop
+    providers/duffel Duffel HTTP client, error classification, offer normalizer
+    fakes/           stand-in Duffel and Gemini servers (tests, offline mode)
   db/migrations/     numbered SQL files, applied in order, each once
 apps/web/        Vite + React front end
   src/
     api/             client.ts: the only place that calls the API (cookies, timeout, errors)
     auth/            AuthContext: who is logged in, reacts to 401
     components/      ErrorBanner, Field
-    pages/           AuthPage, TripsPage, TripDetailPage
+    pages/           Auth, Trips, TripDetail, Flights, Book, Booking(s), Assistant
   e2e/               Playwright browser tests
 docs/            notes and diagrams
 .devcontainer/   GitHub Codespaces setup (Node 22 + Docker)
@@ -66,21 +74,21 @@ Useful: `docker compose ps` (is the DB up?), `docker compose exec db psql -U app
 
 Everything except `/health` and `/auth/register|login` needs a logged-in session (cookie `sid`).
 
-| Method | Path | Who | Success | Errors |
-| --- | --- | --- | --- | --- |
-| GET | `/health` | anyone | 200 (includes `database: up`) | 503 when the database is unreachable |
-| POST | `/auth/register` | anyone | 201 + session cookie | 400, 409 (email taken), 429 |
-| POST | `/auth/login` | anyone | 200 + session cookie | 401 (same message for wrong password and unknown email), 429 |
-| POST | `/auth/logout` | logged in | 204, session deleted | 401 |
-| GET | `/auth/me` | logged in | 200 | 401 |
-| GET | `/trips` | logged in | 200, your trips only (admin: all) | 401 |
-| POST | `/trips` | logged in | 201; optional `passengers` saved in the same transaction | 400, 401, 409 |
-| GET | `/trips/:id` | owner / admin | 200, with passengers | 401, 404 (also for someone else's trip) |
-| DELETE | `/trips/:id` | owner / admin | 204 | 401, 404 |
-| GET / POST | `/trips/:id/passengers` | owner / admin | 200 / 201 | 400, 401, 404, 409 |
-| GET | `/admin/trips`, `/admin/users` | admin | 200 | 401, 403 |
+| Area | Endpoints |
+| --- | --- |
+| Health | `GET /health` (database + which integrations are configured) |
+| Auth | `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, `GET /auth/me` |
+| Trips | `GET/POST /trips`, `GET/DELETE /trips/:id`, `GET/POST /trips/:id/passengers` |
+| Flights | `POST /flights/search` (`{tripId}` or `{criteria}`), `GET /flights/offers/:id`, `POST /flights/offers/:id/quote`, `GET /flights/quotes/:id` |
+| Bookings | `GET/POST /bookings`, `GET /bookings/:id`, `POST /bookings/:id/approve`, `/decline`, `/refresh` |
+| Assistant | `POST /agent/chat`, `GET /agent/conversations/:id` |
+| Admin | `GET /admin/trips`, `GET /admin/users` |
 
-Make someone an admin (server command line only, never over HTTP): `npm run make-admin -w @travel/api -- someone@example.com`
+### Booking states
+
+`REPRICING → ORDERING → TICKETED`; a changed or vanished fare goes `RECOVERY → AWAITING_APPROVAL` (customer approves the new price, or declines → `CANCELLED`);
+an uncertain order goes `CONFIRMING` (looked up, never re-sent); limits reached → `FAILED`; unexpected supplier errors → `NEEDS_ATTENTION`.
+Every step is recorded in `booking_events`.
 
 Every response carries an `X-Request-Id` header; every error body includes the same
 `requestId`, which matches the `req.id` field in the server logs.
@@ -103,6 +111,8 @@ The API refuses to start if a variable is invalid (e.g. `PORT=abc`).
 
 ## Known limitations
 
+- Duffel test mode only: bookings are real API orders against Duffel's test airline, not valid tickets.
+- Payment is Duffel test balance; no customer card payment (Stripe) yet.
 - Rate-limit counters live in memory, per API instance (production: Redis, shared by all instances).
 - No email verification, password reset or multi-factor login yet.
 - Passports and other travel documents are not stored yet; they arrive with file storage (Stage 7) and will be encrypted.

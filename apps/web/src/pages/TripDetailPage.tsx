@@ -1,6 +1,6 @@
 // One trip: its details, its passengers, a form to add a passenger, and delete.
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import { ApiError } from '../api/client';
 import { api } from '../api/endpoints';
 import type { NewPassenger, PaxType, Trip } from '../api/types';
@@ -17,7 +17,9 @@ export function TripDetailPage() {
     setError(null);
     api.getTrip(id).then(setTrip).catch(setError);
   }, [id]);
-  useEffect(load, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function onDelete() {
     if (!window.confirm('Delete this trip and all its passengers?')) return;
@@ -68,6 +70,12 @@ export function TripDetailPage() {
             ))}
           </tbody>
         </table>
+      )}
+
+      {passengers.length === trip.adults + trip.children ? (
+        <p><Link className="button" to={`/trips/${trip.id}/flights`}>Search flights for this trip</Link></p>
+      ) : (
+        <p className="muted">Add all {trip.adults + trip.children} passengers to search flights.</p>
       )}
 
       <AddPassengerForm tripId={trip.id} onAdded={load} />

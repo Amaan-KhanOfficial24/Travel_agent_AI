@@ -24,6 +24,22 @@ const schema = z.object({
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(3).default(0),
   // Login/register attempts allowed per IP per 15 minutes (raised only for automated tests).
   AUTH_RATE_LIMIT: z.coerce.number().int().min(1).max(10_000).default(10),
+
+  // Duffel flight API. Test tokens start with duffel_test_ and can never issue real tickets.
+  DUFFEL_ACCESS_TOKEN: z.string().trim().default(''),
+  DUFFEL_BASE_URL: z.url().default('https://api.duffel.com'),
+  DUFFEL_SUPPLIER_TIMEOUT_MS: z.coerce.number().int().min(2_000).max(60_000).default(20_000),
+  // Safety switch: a live token books and pays for REAL tickets. Refused unless true.
+  ALLOW_LIVE_BOOKINGS: z.stringbool().default(false),
+
+  // Google Gemini for the AI assistant (free tier: Flash / Flash-Lite models).
+  GEMINI_API_KEY: z.string().trim().default(''),
+  GEMINI_MODEL: z.string().trim().default('gemini-flash-latest'),
+  GEMINI_BASE_URL: z.url().default('https://generativelanguage.googleapis.com'),
+
+  // Fare-change recovery guard rails.
+  BOOKING_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(5).default(3),
+  BOOKING_MAX_INCREASE_PCT: z.coerce.number().min(0).max(200).default(25),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -41,6 +57,11 @@ if (!parsed.success) {
 const { CODESPACE_NAME, GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN } = process.env;
 if (CODESPACE_NAME && GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN) {
   parsed.data.CORS_ORIGINS.push(`https://${CODESPACE_NAME}-5173.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}`);
+}
+
+if (parsed.data.DUFFEL_ACCESS_TOKEN.startsWith('duffel_live_') && !parsed.data.ALLOW_LIVE_BOOKINGS) {
+  console.error('DUFFEL_ACCESS_TOKEN is a LIVE token (real tickets, real money). Use a duffel_test_ token, or set ALLOW_LIVE_BOOKINGS=true deliberately.');
+  process.exit(1);
 }
 
 export const config = parsed.data;

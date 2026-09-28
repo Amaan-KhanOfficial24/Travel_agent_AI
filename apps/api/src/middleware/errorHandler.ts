@@ -3,6 +3,8 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { mapDbError } from '../db/errors.js';
 import { AppError, notFound } from '../errors.js';
+import { providerErrorToAppError } from '../flights/flights.service.js';
+import { ProviderError } from '../providers/duffel/client.js';
 
 // Any request that reached this point matched no route.
 export const notFoundHandler: RequestHandler = (req, _res, next) => {
@@ -13,6 +15,12 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   // Malformed JSON is detected by express.json() before our code runs.
   if (err?.type === 'entity.parse.failed') {
     err = new AppError(400, 'MALFORMED_JSON', 'Request body is not valid JSON');
+  }
+
+  // Flight-provider errors become 409 / 422 / 5xx with customer-safe messages.
+  if (err instanceof ProviderError) {
+    req.log.warn({ category: err.category, providerCode: err.code, providerStatus: err.status, providerRequestId: err.providerRequestId }, err.message);
+    err = providerErrorToAppError(err);
   }
 
   // Database errors become 400 / 409 / 503. Log the original so we keep the detail.
