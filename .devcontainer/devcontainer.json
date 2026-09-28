@@ -16,6 +16,30 @@
       ]
     }
   },
-  "postCreateCommand": "npm install",
-  "postStartCommand": "docker compose up -d db"
+  "postCreateCommand": "npm install && npx playwright install --with-deps chromium",
+  "postStartCommand": "docker compose up -d db",
+  "containerEnv": {
+    "DATABASE_URL": "postgres://app@localhost:5432/travel",
+    "TEST_DATABASE_URL": "postgres://app@localhost:5432/travel_test"
+  },
+  "secrets": {
+    "DUFFEL_ACCESS_TOKEN": {
+      "description": "Duffel TEST access token (starts with duffel_test_). Create it at app.duffel.com \u2192 Developers \u2192 Access tokens, in test mode.",
+      "documentationUrl": "https://duffel.com/docs/guides/getting-started-with-flights"
+    },
+    "GEMINI_API_KEY": {
+      "description": "Google Gemini API key for the AI assistant (free tier). Create it at aistudio.google.com \u2192 Get API key.",
+      "documentationUrl": "https://ai.google.dev/gemini-api/docs/api-key"
+    }
+  },
+  "portsAttributes": {
+    "5173": {
+      "label": "App",
+      "onAutoForward": "openBrowser"
+    },
+    "3000": {
+      "label": "API",
+      "onAutoForward": "silent"
+    }
+  }
 }

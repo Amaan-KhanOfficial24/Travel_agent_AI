@@ -8,13 +8,16 @@ import express from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 import { adminRouter } from './admin/admin.routes.js';
+import { agentRouter } from './agent/agent.routes.js';
 import { authRouter } from './auth/auth.routes.js';
+import { bookingsRouter } from './bookings/bookings.routes.js';
 import { config } from './config.js';
 import { pool } from './db/pool.js';
 import { logger } from './logger.js';
 import { authenticate } from './middleware/auth.js';
 import { csrfProtection } from './middleware/csrf.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { flightsRouter } from './flights/flights.routes.js';
 import { requestId } from './middleware/requestId.js';
 import { tripsRouter } from './trips/trips.routes.js';
 
@@ -58,13 +61,22 @@ export function createApp() {
     const started = Date.now();
     try {
       await pool.query('SELECT 1');
-      res.json({ status: 'ok', database: 'up', dbLatencyMs: Date.now() - started, uptimeSeconds: Math.round(process.uptime()) });
+      res.json({
+        status: 'ok',
+        database: 'up',
+        dbLatencyMs: Date.now() - started,
+        uptimeSeconds: Math.round(process.uptime()),
+        integrations: { flights: config.DUFFEL_ACCESS_TOKEN ? (config.DUFFEL_ACCESS_TOKEN.startsWith('duffel_live_') ? 'live' : 'test') : 'not configured', assistant: config.GEMINI_API_KEY ? 'configured' : 'not configured' },
+      });
     } catch {
       res.status(503).json({ status: 'degraded', database: 'down', uptimeSeconds: Math.round(process.uptime()) });
     }
   });
   app.use('/auth', authRouter);
   app.use('/trips', tripsRouter);
+  app.use('/flights', flightsRouter);
+  app.use('/bookings', bookingsRouter);
+  app.use('/agent', agentRouter);
   app.use('/admin', adminRouter);
 
   // Deliberate failure route, used only to demonstrate how a bug is handled.

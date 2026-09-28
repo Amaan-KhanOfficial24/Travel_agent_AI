@@ -19,7 +19,7 @@ type TripRow = {
 };
 type PassengerRow = {
   id: string; trip_id: string; pax_type: Passenger['paxType']; title: Passenger['title'] | null;
-  given_name: string; family_name: string; born_on: string; created_at: Date;
+  given_name: string; family_name: string; born_on: string; gender: 'm' | 'f' | null; created_at: Date;
 };
 
 // Database columns are snake_case; the API speaks camelCase. Mapping happens here only.
@@ -44,6 +44,7 @@ const toPassenger = (r: PassengerRow): Passenger => ({
   givenName: r.given_name,
   familyName: r.family_name,
   bornOn: r.born_on,
+  ...(r.gender ? { gender: r.gender } : {}),
   createdAt: r.created_at.toISOString(),
 });
 
@@ -96,10 +97,10 @@ export const tripsRepository = {
 
   async addPassenger(tripId: string, p: PassengerInput, db: Queryable = pool): Promise<Passenger> {
     const { rows } = await db.query<PassengerRow>(
-      `INSERT INTO passengers (trip_id, pax_type, title, given_name, family_name, born_on)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO passengers (trip_id, pax_type, title, given_name, family_name, born_on, gender)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [tripId, p.paxType, p.title ?? null, p.givenName, p.familyName, p.bornOn],
+      [tripId, p.paxType, p.title ?? null, p.givenName, p.familyName, p.bornOn, p.gender ?? null],
     );
     return toPassenger(rows[0]!);
   },
@@ -110,5 +111,10 @@ export const tripsRepository = {
       [tripId],
     );
     return rows.map(toPassenger);
+  },
+
+  /** Fill in title/gender collected at booking time. */
+  async updateBookingDetails(id: string, d: { title: string; gender: string }, db: Queryable = pool): Promise<void> {
+    await db.query('UPDATE passengers SET title = $2, gender = $3 WHERE id = $1', [id, d.title, d.gender]);
   },
 };
