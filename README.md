@@ -12,7 +12,8 @@ a React front end (Vite) and PostgreSQL.
 | 2 | API skeleton: layers, validation, errors, request IDs, logs, tests | Done |
 | 3 | PostgreSQL: migrations, SQL repositories, transactions, row locks, DB error handling | Done |
 | 4 | Accounts, sessions, roles, CORS, CSRF, rate limiting, security headers | Done |
-| 5 | Frontend (React) | Next |
+| 5 | React frontend: login, trips, passengers; loading and error states; browser tests | Done |
+| 6 | Flight search with the Duffel test API | Next |
 
 ## Structure
 
@@ -30,7 +31,13 @@ apps/api/        Express + TypeScript API
     db/              connection pool, transactions, migration runner, DB error mapping
     trips/           routes → controller → service → repository (+ schema)
   db/migrations/     numbered SQL files, applied in order, each once
-apps/web/        Vite + React front end (Stage 5)
+apps/web/        Vite + React front end
+  src/
+    api/             client.ts: the only place that calls the API (cookies, timeout, errors)
+    auth/            AuthContext: who is logged in, reacts to 401
+    components/      ErrorBanner, Field
+    pages/           AuthPage, TripsPage, TripDetailPage
+  e2e/               Playwright browser tests
 docs/            notes and diagrams
 .devcontainer/   GitHub Codespaces setup (Node 22 + Docker)
 .github/         CI: type-check and tests on every push / pull request
@@ -46,8 +53,11 @@ Codespaces installs dependencies and starts PostgreSQL (Docker) automatically. T
 cp apps/api/.env.example apps/api/.env
 # set DATABASE_URL in apps/api/.env to the local Docker database, e.g.
 #   postgres://app@localhost:5432/travel
-npm run dev:api          # applies migrations, then serves http://localhost:3000
-npm test                 # runs against the separate travel_test database
+npm run dev:api          # terminal 1: applies migrations, then serves http://localhost:3000
+npm run dev:web          # terminal 2: the app on http://localhost:5173 (Codespaces opens it for you)
+npm test                 # API tests, against the separate travel_test database
+npx playwright install chromium   # once, then:
+npm run e2e              # browser tests: starts both servers and clicks through the app
 ```
 
 Useful: `docker compose ps` (is the DB up?), `docker compose exec db psql -U app -d travel` (SQL shell).
