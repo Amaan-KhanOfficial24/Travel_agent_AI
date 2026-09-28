@@ -16,6 +16,7 @@ export const passengerSchema = z.object({
   givenName: z.string().trim().min(1).max(60),
   familyName: z.string().trim().min(1).max(60),
   bornOn: isoDate,
+  gender: z.enum(['m', 'f']).optional(), // required by airlines at booking time
 });
 
 export const createTripSchema = z
