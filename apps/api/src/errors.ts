@@ -20,3 +20,10 @@ export const badRequest = (message: string, details?: unknown) =>
 export const notFound = (message = 'Resource not found') => new AppError(404, 'NOT_FOUND', message);
 
 export const conflict = (message: string) => new AppError(409, 'CONFLICT', message);
+
+// 401 = "we don't know who you are" (not logged in / session expired).
+export const unauthorized = (message = 'Please log in') => new AppError(401, 'UNAUTHENTICATED', message);
+
+// 403 = "we know who you are, and you are not allowed to do this".
+export const forbidden = (message = 'You do not have permission to do this') =>
+  new AppError(403, 'FORBIDDEN', message);
