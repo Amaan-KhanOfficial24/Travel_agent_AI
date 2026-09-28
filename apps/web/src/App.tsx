@@ -1,8 +1,12 @@
 // Routes: which page shows for which URL, and which pages need a logged-in user.
 import type { ReactNode } from 'react';
-import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from 'react-router';
+import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router';
 import { AuthProvider, useAuth } from './auth/AuthContext';
+import { AssistantPage } from './pages/AssistantPage';
 import { AuthPage } from './pages/AuthPage';
+import { BookingPage, BookingsPage } from './pages/BookingPage';
+import { BookPage } from './pages/BookPage';
+import { FlightsPage } from './pages/FlightsPage';
 import { TripDetailPage } from './pages/TripDetailPage';
 import { TripsPage } from './pages/TripsPage';
 
@@ -20,6 +24,13 @@ function Header() {
   return (
     <header>
       <Link to="/trips" className="brand">✈ Travel Agent</Link>
+      {user && (
+        <nav>
+          <NavLink to="/assistant">Assistant</NavLink>
+          <NavLink to="/trips" end>Trips</NavLink>
+          <NavLink to="/bookings">Bookings</NavLink>
+        </nav>
+      )}
       {user && (
         <span className="who">
           {user.email}{user.role === 'admin' ? ' (admin)' : ''}
@@ -40,6 +51,11 @@ export function App() {
           <Route path="/register" element={<AuthPage mode="register" />} />
           <Route path="/trips" element={<RequireAuth><TripsPage /></RequireAuth>} />
           <Route path="/trips/:id" element={<RequireAuth><TripDetailPage /></RequireAuth>} />
+          <Route path="/trips/:id/flights" element={<RequireAuth><FlightsPage /></RequireAuth>} />
+          <Route path="/book/:quoteId" element={<RequireAuth><BookPage /></RequireAuth>} />
+          <Route path="/bookings" element={<RequireAuth><BookingsPage /></RequireAuth>} />
+          <Route path="/bookings/:id" element={<RequireAuth><BookingPage /></RequireAuth>} />
+          <Route path="/assistant" element={<RequireAuth><AssistantPage /></RequireAuth>} />
           <Route path="*" element={<Navigate to="/trips" replace />} />
         </Routes>
       </AuthProvider>
