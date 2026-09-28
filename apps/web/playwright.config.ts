@@ -9,7 +9,8 @@ export default defineConfig({
   timeout: 30_000,
   fullyParallel: false,
   workers: 1,
-  reporter: 'list',
+  // On GitHub, failures also appear as annotations on the pull request.
+  reporter: process.env.CI ? [['github'], ['list']] : 'list',
   use: {
     baseURL: 'http://localhost:5173',
     screenshot: 'only-on-failure',
