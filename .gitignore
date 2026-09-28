@@ -2,6 +2,8 @@
 node_modules/
 dist/
 coverage/
+test-results/
+playwright-report/
 
 # secrets: never committed
 .env
