@@ -21,7 +21,9 @@ export function FlightsPage() {
     setCheck(null);
     api.searchForTrip(tripId, nonstop ? 0 : undefined).then(setResult).catch(setError);
   }, [tripId, nonstop]);
-  useEffect(search, [search]);
+  useEffect(() => {
+    search();
+  }, [search]);
 
   async function checkPrice(offerId: string) {
     setChecking(offerId);

@@ -17,7 +17,9 @@ export function TripDetailPage() {
     setError(null);
     api.getTrip(id).then(setTrip).catch(setError);
   }, [id]);
-  useEffect(load, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function onDelete() {
     if (!window.confirm('Delete this trip and all its passengers?')) return;

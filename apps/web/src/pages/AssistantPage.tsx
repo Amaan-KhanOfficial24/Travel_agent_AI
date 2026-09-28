@@ -20,7 +20,11 @@ export function AssistantPage() {
   const [error, setError] = useState<unknown>(null);
   const [checks, setChecks] = useState<Record<string, PriceCheck | 'loading'>>({});
   const bottom = useRef<HTMLDivElement>(null);
-  useEffect(() => bottom.current?.scrollIntoView?.({ behavior: 'smooth' }), [messages, checks]);
+  // Braces matter: an effect may only return a cleanup function. Newer browsers make
+  // scrollIntoView return a Promise, and returning that crashes React ("destroy is not a function").
+  useEffect(() => {
+    bottom.current?.scrollIntoView?.({ behavior: 'smooth' });
+  }, [messages, checks]);
 
   async function send(e: FormEvent) {
     e.preventDefault();
