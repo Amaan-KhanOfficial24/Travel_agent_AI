@@ -11,7 +11,8 @@ a React front end (Vite) and PostgreSQL.
 | 1 | Repository structure, config contract, Codespaces | Done |
 | 2 | API skeleton: layers, validation, errors, request IDs, logs, tests | Done |
 | 3 | PostgreSQL: migrations, SQL repositories, transactions, row locks, DB error handling | Done |
-| 4 | Authentication and security | Next |
+| 4 | Accounts, sessions, roles, CORS, CSRF, rate limiting, security headers | Done |
+| 5 | Frontend (React) | Next |
 
 ## Structure
 
@@ -23,7 +24,9 @@ apps/api/        Express + TypeScript API
     config.ts        reads and validates environment variables at startup
     logger.ts        structured JSON logging (pretty in development)
     errors.ts        AppError: expected errors with status + code
-    middleware/      requestId, validate, errorHandler
+    middleware/      requestId, validate, errorHandler, auth, csrf
+    auth/            register / login / logout, argon2id passwords, server-side sessions
+    admin/           admin-only routes; make-admin command
     db/              connection pool, transactions, migration runner, DB error mapping
     trips/           routes → controller → service → repository (+ schema)
   db/migrations/     numbered SQL files, applied in order, each once
@@ -51,15 +54,23 @@ Useful: `docker compose ps` (is the DB up?), `docker compose exec db psql -U app
 
 ## API
 
-| Method | Path | Success | Errors |
-| --- | --- | --- | --- |
-| GET | `/health` | 200 (includes `database: up`) | 503 when the database is unreachable |
-| GET | `/trips` | 200 (newest 50) | 503 `DATABASE_UNAVAILABLE` |
-| POST | `/trips` | 201 + `Location`; optional `passengers` saved in the same transaction | 400 `VALIDATION_FAILED` / `MALFORMED_JSON`, 409 `CONFLICT` |
-| GET | `/trips/:id` | 200, with passengers | 400 (id not a UUID), 404 `NOT_FOUND` |
-| DELETE | `/trips/:id` | 204 (passengers deleted too) | 404 |
-| GET | `/trips/:id/passengers` | 200 | 404 |
-| POST | `/trips/:id/passengers` | 201 | 400 (more passengers than the trip allows), 404, 409 (same person twice) |
+Everything except `/health` and `/auth/register|login` needs a logged-in session (cookie `sid`).
+
+| Method | Path | Who | Success | Errors |
+| --- | --- | --- | --- | --- |
+| GET | `/health` | anyone | 200 (includes `database: up`) | 503 when the database is unreachable |
+| POST | `/auth/register` | anyone | 201 + session cookie | 400, 409 (email taken), 429 |
+| POST | `/auth/login` | anyone | 200 + session cookie | 401 (same message for wrong password and unknown email), 429 |
+| POST | `/auth/logout` | logged in | 204, session deleted | 401 |
+| GET | `/auth/me` | logged in | 200 | 401 |
+| GET | `/trips` | logged in | 200, your trips only (admin: all) | 401 |
+| POST | `/trips` | logged in | 201; optional `passengers` saved in the same transaction | 400, 401, 409 |
+| GET | `/trips/:id` | owner / admin | 200, with passengers | 401, 404 (also for someone else's trip) |
+| DELETE | `/trips/:id` | owner / admin | 204 | 401, 404 |
+| GET / POST | `/trips/:id/passengers` | owner / admin | 200 / 201 | 400, 401, 404, 409 |
+| GET | `/admin/trips`, `/admin/users` | admin | 200 | 401, 403 |
+
+Make someone an admin (server command line only, never over HTTP): `npm run make-admin -w @travel/api -- someone@example.com`
 
 Every response carries an `X-Request-Id` header; every error body includes the same
 `requestId`, which matches the `req.id` field in the server logs.
@@ -82,6 +93,7 @@ The API refuses to start if a variable is invalid (e.g. `PORT=abc`).
 
 ## Known limitations
 
-- No authentication yet (Stage 4): anyone can read or delete any trip.
+- Rate-limit counters live in memory, per API instance (production: Redis, shared by all instances).
+- No email verification, password reset or multi-factor login yet.
 - Passports and other travel documents are not stored yet; they arrive with file storage (Stage 7) and will be encrypted.
 - Migrations run automatically when the API starts. Larger systems run them as a separate deploy step.
